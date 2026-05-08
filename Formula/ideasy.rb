@@ -4,10 +4,6 @@
 # Homebrew formula for IDEasy - Development Environment Automation Tool
 # Homepage: https://github.com/devonfw/IDEasy
 # License: Apache-2.0
-#
-# IDEasy automates the setup and updates of development environments for any project.
-# It allows developers to set up a complete dev environment with a single CLI command
-# on Windows, Mac, or Linux, getting all tools in the configured versions.
 
 class Ideasy < Formula
   desc "Tool to automate the setup and updates of a development environment for any project"
@@ -38,46 +34,43 @@ class Ideasy < Formula
   depends_on "bash"
 
   def install
-    # IDEasy ships as a pre-built CLI distribution in a tar.gz archive.
-    # The archive contains a bin/ directory with the 'ide' launcher script/binary
-    # and a lib/ directory with supporting files.
+    # The IDEasy archive contains:
+    #   bin/ideasy   - the main CLI binary
+    #   functions    - shell functions
+    #   setup        - setup script
+    #   internal/    - internal resources
+    #   system/      - system-specific configs
+    #   IDEasy.pdf   - documentation
 
-    # Install all files from the extracted archive into the Homebrew prefix
+    # Install everything into libexec to keep it self-contained
     libexec.install Dir["*"]
 
-    # Create a wrapper script in bin/ that points to the actual binary in libexec
-    if File.exist?(libexec/"bin/ide")
-      (bin/"ide").write_env_script libexec/"bin/ide",
-        IDEASY_HOME: libexec.to_s
-    elsif File.exist?(libexec/"ide")
-      (bin/"ide").write_env_script libexec/"ide",
-        IDEASY_HOME: libexec.to_s
-    else
-      # Fallback: find the main executable and link it
-      Dir.glob(libexec/"**/*").select { |f| File.executable?(f) && File.basename(f) == "ide" }.each do |exe|
-        (bin/"ide").write_env_script exe,
-          IDEASY_HOME: libexec.to_s
-      end
-    end
+    # Make the binary executable
+    chmod 0755, libexec/"bin/ideasy"
+
+    # Symlink the actual binary (named 'ideasy') into Homebrew's bin
+    bin.install_symlink libexec/"bin/ideasy"
+
+    # Also create an 'ide' convenience alias pointing to the same binary
+    ln_s libexec/"bin/ideasy", bin/"ide"
   end
 
   def caveats
     <<~EOS
       IDEasy has been installed. To get started:
 
-        1. Run 'ide --version' to verify the installation
-        2. Run 'ide create <project-name>' to set up a new project
-        3. Visit https://github.com/devonfw/IDEasy/blob/main/documentation/setup.adoc for full documentation
+        1. Run 'ideasy --version' to verify the installation
+        2. Run 'ideasy create <project-name>' to set up a new project
+        3. Visit https://github.com/devonfw/IDEasy/blob/main/documentation/setup.adoc
+           for full documentation
 
-      Note: IDEasy requires 'git' to be installed (included as a dependency).
+      Both 'ideasy' and 'ide' commands are available on your PATH.
 
-      For IDEasy to manage your development tools, it will create project-specific
-      directories. See the documentation for details on the directory structure.
+      Note: You may need to restart your terminal for the commands to be available.
     EOS
   end
 
   test do
-    # Verify the ide command is available and responds
-    assert_match(/IDEasy|ide|version/i, shell_output("#{bin}/ide --version 2>&1", 0).strip)
+    assert_match version.to_s, shell_output("#{bin}/ideasy --version 2>&1")
   end
 end
